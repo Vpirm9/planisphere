@@ -45,7 +45,7 @@ line_width_base: float = 0.2 * unit_mm
 r_1: float = 8.0 * unit_cm
 
 # Outer rim width with dates marked
-r_gap: float = 1.1 * unit_cm
+r_gap: float = 1.12 * unit_cm
 
 # Gap between edge of disk and fold in paper
 fold_gap: float = 0.2 * unit_cm

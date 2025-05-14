@@ -34,7 +34,7 @@ def fetch_command_line_arguments(default_filename: str = '') -> Dict[str, Union[
     """
 
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--latitude', dest='latitude', type=int, default=52,
+    parser.add_argument('--latitude', dest='latitude', type=float, default=46.0,
                         help="The latitude to create a planisphere for.")
     parser.add_argument('--format', dest='img_format', choices=["pdf", "png", "svg"], default="png",
                         help="The image format to create.")
@@ -42,11 +42,14 @@ def fetch_command_line_arguments(default_filename: str = '') -> Dict[str, Union[
                         help="Filename for output, without a file type suffix.")
     parser.add_argument('--theme', dest='theme', choices=["default", "dark"], default="default",
                         help="Color theme to be used in the planisphere.")
+    parser.add_argument('--language', dest='language', default="en",
+                    help="Language to be used.")
     args = parser.parse_args()
 
     return {
         "latitude": args.latitude,
         "img_format": args.img_format,
         "filename": args.filename,
-        "theme": args.theme
+        "theme": args.theme,
+        "language": args.language
     }

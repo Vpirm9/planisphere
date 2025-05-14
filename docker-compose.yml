@@ -1,7 +1,8 @@
 version: '3'
 services:
   python:
-    build: .
+    build:
+      context: d:\Documents\Planisphere\planisphere
     volumes:
       - .:/code
     command: ./main_planisphere.sh --theme default
