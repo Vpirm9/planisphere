@@ -64,8 +64,8 @@ class Holder(BaseComponent):
         return {
             'x_min': -r_1 - 4 * unit_mm,
             'x_max': r_1 + 4 * unit_mm,
-            'y_min': -r_2 - h - 4 * unit_mm - 4* unit_cm,
-            'y_max': h + 1.2 * unit_cm - 4* unit_cm
+            'y_min': -r_1 - 4 * unit_mm - h, #-r_2 - h - 4 * unit_mm - 4* unit_cm,
+            'y_max': r_1 + 4 * unit_mm - h #h + 1.2 * unit_cm - 4* unit_cm
         }
         #}
 
