@@ -76,10 +76,13 @@ class Holder(BaseComponent):
             azimuth_step = 1
 
             # Draw grid lines (semi-transparent and thin)
-            context.set_color((0.3, 0.3, 0.3, 0.5))  # Light gray, 50% opacity
+            #context.set_color((0.3, 0.3, 0.3, 0.5))  # Light gray, 50% opacity ---> Changed to black
+            context.set_color((0, 0, 0, 1))  # Solid black
+            context.set_line_width(0.25 * line_width_base)
 
-            # Altitude circles (10° increments)
-            for alt in range(10, 85, 10):
+
+            # Altitude circles (20° increments)
+            for alt in range(10, 85, 20):
                 path = [
                     transform(alt=alt, az=az, latitude=latitude)
                     for az in arange(0, 360.5, 1)
@@ -96,9 +99,9 @@ class Holder(BaseComponent):
                         context.line_to(x, y)
                 context.stroke()
 
-            # Azimuth lines (22.5° increments) - dashed
+            # Azimuth lines (30° increments) - dashed
             context.set_line_style(dotted=True)
-            for az in arange(0, 359, 22.5):
+            for az in arange(0, 359, 30):
                 path = [
                     transform(alt=alt, az=az, latitude=latitude)
                     for alt in arange(0, 90.1, 1)
@@ -115,6 +118,8 @@ class Holder(BaseComponent):
                         context.line_to(x, y)
                 context.stroke()
             context.set_line_style(dotted=False)  # Reset line style
+            context.set_color((0.3, 0.3, 0.3, 0.5))
+
 
 
     def do_rendering(self, settings: dict, context: GraphicsContext) -> None:
@@ -239,11 +244,13 @@ class Holder(BaseComponent):
 
         # Now draw the edges with proper colors
         # Viewing window edge in gray
+
         context.begin_path()
         context.move_to(*viewing_window_points[0])
         for x, y in viewing_window_points[1:]:
             context.line_to(x, y)
-        context.set_color(gray_color)
+        context.set_color((0, 0, 0, 1))#context.set_color(gray_color)
+        context.set_line_width(line_width_base)
         context.stroke()
 
         ## Hour circle edge in black ---> Might be needed
