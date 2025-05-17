@@ -21,8 +21,8 @@
 Render the holder for the planisphere.
 """
 
-from math import pi, sin, cos, atan2, asin, hypot
-from numpy import arange
+from math import pi, sin, cos, atan2, asin, hypot, sqrt
+from numpy import arange, concatenate, sum, array, arctan2, unwrap, degrees, argsort #,sqrt
 from typing import Dict, List, Tuple
 
 from constants import radius, transform, pos
@@ -226,21 +226,23 @@ class Holder(BaseComponent):
         # Draw the filled area between the two paths (without stroke)
         context.begin_path()
         context.move_to(*viewing_window_points[0])
-        for x, y in viewing_window_points[1:]:
+        for x, y in viewing_window_points:
+            context.line_to(x, y)
+        context.close_path()
+        context.line_to(*viewing_window_points[0])
+        for x, y in hour_circle_points:
             context.line_to(x, y)
         context.line_to(*hour_circle_points[0])
-        for x, y in hour_circle_points[1:]:
-            context.line_to(x, y)
         context.close_path()
         context.fill(color=gray_color)
 
         # Make the last triangle
-        context.begin_path()
-        context.move_to(*viewing_window_points[0])
-        context.line_to(*hour_circle_points[0])
-        context.line_to(*hour_circle_points[-1])
-        context.close_path()
-        context.fill(color=gray_color)
+        #context.begin_path()
+        #context.move_to(*viewing_window_points[0])
+        #context.line_to(*hour_circle_points[0])
+        #context.line_to(*hour_circle_points[-1])
+        #context.close_path()
+        #context.fill(color=gray_color)
 
         # Now draw the edges with proper colors
         # Viewing window edge in gray
@@ -249,9 +251,106 @@ class Holder(BaseComponent):
         context.move_to(*viewing_window_points[0])
         for x, y in viewing_window_points[1:]:
             context.line_to(x, y)
+        context.line_to(*viewing_window_points[0])
         context.set_color((0, 0, 0, 1))#context.set_color(gray_color)
         context.set_line_width(line_width_base)
         context.stroke()
+
+
+        # Start and end of astronomical night
+        alt_twilight = -18  # Altitude for line below horizon
+        twilight_points = []
+
+        
+        # From 340 to 360 (inclusive)
+        part1 = arange(90, 0, -1)
+        # From 0 to 200 (inclusive)
+        part2 = arange(360, 270, -1)
+        # Concatenate both parts
+        az_points_right = concatenate((part1, part2))
+
+        # Altitude circles (20° increments)
+        alt=-18.0
+        path = [
+            transform(alt=alt, az=az, latitude=latitude)
+            for az in arange(90, 270, 1)
+        ]
+        context.begin_path()
+        for i, p in enumerate(path):
+            r = radius(dec=p[1] / unit_deg, latitude=latitude)
+            pos_abs = pos(r, p[0])
+            x = x0[0] + pos_abs['x']
+            y = -x0[1] + pos_abs['y']
+            if i == 0:
+                context.move_to(x, y)
+            else:
+                if sqrt((pos_abs['x'])**2+(pos_abs['y'])**2) <= (r_2-10.0*unit_mm):
+                    context.line_to(x, y)
+        context.stroke()
+
+
+
+        path = [
+            transform(alt=alt, az=az, latitude=latitude)
+            for az in az_points_right
+        ]
+        context.begin_path()
+        for i, p in enumerate(path):
+            r = radius(dec=p[1] / unit_deg, latitude=latitude)
+            pos_abs = pos(r, p[0])
+            x = x0[0] + pos_abs['x']
+            y = -x0[1] + pos_abs['y']
+            if i == 0:
+                context.move_to(x, y)
+            else:
+                if sqrt((pos_abs['x'])**2+(pos_abs['y'])**2) <= (r_2-10.0*unit_mm):
+                    context.line_to(x, y)
+        context.stroke()
+
+
+
+
+
+        #for az in arange(90, 270, 1):
+        #    pp = transform(alt=alt_twilight, az=az, latitude=latitude)
+        #    r = radius(dec=pp[1] / unit_deg, latitude=latitude)
+        #    p = pos(r=r, t=pp[0])
+        #    twilight_points.append((x0[0] + p['x'], -x0[1] + p['y']))
+    #
+        #context.begin_path()
+        #context.move_to(*twilight_points[0])    
+        #for x, y in twilight_points:
+        #    if sqrt(x**2+(y)**2) <= (r_1):
+        #        context.line_to(x, y)
+        #context.set_color((0., 0., 0., 1.))  
+        #context.set_line_width(1.5 * line_width_base)
+        #context.stroke()
+
+        
+        #twilight_points_array=array(twilight_points)
+        #context.begin_path()
+        #context.move_to(*filtered_twilight_points[0])
+
+        #r_squared = sum(twilight_points_array**2, axis=1)
+        #r_squared = twilight_points_array[:, 0]**2 + (twilight_points_array[:, 1] - h)**2
+        
+
+        # Keep only points where r <= r_border
+        #filtered_twilight_points = twilight_points_array[r_squared <= r_2**2]
+
+
+
+
+
+        #context.begin_path()
+        #context.move_to(*filtered_twilight_points[0])
+        #for x, y in filtered_twilight_points[1:]:
+        #    context.line_to(x, y)
+        #context.set_color((0., 0., 0., 1.))  # Dark blue line
+        #context.set_line_width(1.5 * line_width_base)
+        #context.stroke()
+
+
 
         ## Hour circle edge in black ---> Might be needed
         #context.begin_path()
@@ -369,8 +468,73 @@ class Holder(BaseComponent):
         #    context.stroke(line_width=1)
         #    context.text(text=txt, x=r_6 * sin(t), y=-h - r_6 * cos(t), h_align=0, v_align=0, gap=0, rotation=t)
         # Write the hours in 24-hour format
+
+
+        minute_intervals = [0.25, 0.5, 0.75]  # 15, 30, 45 minutes as fractions of an hour
+        minute_labels = ["15'", "30'", "45'"]    # Corresponding labels
+
+
+        #minute_intervals = [0.3333, 0.6666,]  # 15, 30, 45 minutes as fractions of an hour
+        #minute_labels = ["20'", "40'"]    # Corresponding labels
+
+        r_7: float = r_2 - 3.5 * unit_mm  # Radius for minute ticks
+        r_8: float = r_2 - 4.5 * unit_mm  # Radius for minute labels
+
+        #original_font_size = context.get_font_size()
+        #Add minutes
+        
+        context.set_font_size(0.6)
+
         for hr in range(24):
-            txt: str = "{:02d}".format(hr)
+            for i, minute_frac in enumerate(minute_intervals):
+                # Calculate position for this minute mark
+                t: float = unit_rev / 24 * (hr + minute_frac) * (-1 if not is_southern else 1)
+
+                # Draw minute tick
+
+                context.begin_path()
+                context.move_to(x=r_3 * sin(t), y=-h - r_3 * cos(t))
+                context.line_to(x=r_7 * sin(t), y=-h - r_7 * cos(t))
+                context.stroke(line_width=1)
+
+                # Add minute label
+                
+                context.text(
+                    text=minute_labels[i],
+                    x=r_8 * sin(t), y=-h - r_8 * cos(t),
+                    h_align=0, v_align=0, gap=0, rotation=t
+                )
+        # Add hours
+
+        context.set_font_size(0.9)
+
+        for hr in range(24):
+                   
+            #for i, minute_frac in enumerate(minute_intervals):
+            #    # Calculate position for this minute mark
+            #    t_min: float = unit_rev / 24 * ( minute_frac) * (-1 if not is_southern else 1)
+            #    
+            #    # Draw thicker tick for minute marks
+            #    context.begin_path()
+            #    context.move_to(x=r_3 * sin(t_min), y=-h - r_3 * cos(t_min))
+            #    context.line_to(x=r_5 * sin(t_min), y=-h - r_4 * cos(t_min))
+            #    context.stroke(line_width=1)  # Thicker line for minute marks
+            #    
+            #    # Add minute label
+            #    context.set_font_size(0.5 * font_size_base)  # Smaller font for minute labels
+            #    context.text(
+            #        text=minute_labels[i],
+            #        x=r_6 * sin(t_min), y=-h - r_6 * cos(t_min),
+            #        h_align=0, v_align=0, gap=0, rotation=t_min
+            #    )
+
+            ## Write the hours in 24-hour format
+            #context.set_font_size(font_size_base)  # Reset to normal font size
+
+
+
+            #txt: str = "{:02d}h".format(hr)
+            txt: str = "{}h".format(hr)  # e.g., 8h
             if language == "fr":
                 txt = "{:02d}h00".format(hr)
 
