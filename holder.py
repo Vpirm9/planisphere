@@ -361,114 +361,67 @@ class Holder(BaseComponent):
 
 
 
-        #for az in arange(90, 270, 1):
-        #    pp = transform(alt=alt_twilight, az=az, latitude=latitude)
-        #    r = radius(dec=pp[1] / unit_deg, latitude=latitude)
-        #    p = pos(r=r, t=pp[0])
-        #    twilight_points.append((x0[0] + p['x'], -x0[1] + p['y']))
-    #
-        #context.begin_path()
-        #context.move_to(*twilight_points[0])    
-        #for x, y in twilight_points:
-        #    if sqrt(x**2+(y)**2) <= (r_1):
-        #        context.line_to(x, y)
-        #context.set_color((0., 0., 0., 1.))  
-        #context.set_line_width(1.5 * line_width_base)
-        #context.stroke()
 
-        
-        #twilight_points_array=array(twilight_points)
-        #context.begin_path()
-        #context.move_to(*filtered_twilight_points[0])
+   
 
-        #r_squared = sum(twilight_points_array**2, axis=1)
-        #r_squared = twilight_points_array[:, 0]**2 + (twilight_points_array[:, 1] - h)**2
-        
+        # First create a dictionary to store the positions
+        cardinal_positions = {}  # Will store {'N': (x,y), 'S': (x,y), etc.}
 
-        # Keep only points where r <= r_border
-        #filtered_twilight_points = twilight_points_array[r_squared <= r_2**2]
+        def cardinal(dir: str, ang: float) -> Tuple[float, float]:
+            scale_factor = 1.0
 
-
-
-
-
-        #context.begin_path()
-        #context.move_to(*filtered_twilight_points[0])
-        #for x, y in filtered_twilight_points[1:]:
-        #    context.line_to(x, y)
-        #context.set_color((0., 0., 0., 1.))  # Dark blue line
-        #context.set_line_width(1.5 * line_width_base)
-        #context.stroke()
-
-
-
-        ## Hour circle edge in black ---> Might be needed
-        #context.begin_path()
-        #context.move_to(*hour_circle_points[0])
-        #for x, y in hour_circle_points[1:]:
-        #    context.line_to(x, y)
-        #context.set_color((0, 0, 0, 1))
-        #context.stroke()
-
-
-        # Display instructions for cutting out the viewing window
-        #instructions: str = text[language]["cut_out_instructions"]
-        #context.set_color(color=(0, 0, 0, 1))
-        #context.text_wrapped(text=instructions,
-        #                     width=4 * unit_cm, justify=0,
-        #                     x=0, y=-h - r_1 * 0.35,
-        #                     h_align=0, v_align=0, rotation=0)
-
-        # Cardinal points
-
-        def cardinal(dir: str, ang: float) -> None:
-            
-            scale_factor=1.0
-
-            #pp: Tuple[float, float] = transform(alt=0, az=ang - 0.01, latitude=latitude)
-            #r: float = radius(dec=pp[1] / unit_deg, latitude=latitude)
-            #p: Dict[str, float] = pos(r, pp[0])
-
-            #pp2: Tuple[float, float] = transform(alt=0, az=ang + 0.01, latitude=latitude)
-            #r2: float = radius(dec=pp2[1] / unit_deg, latitude=latitude)
-            #p2: Dict[str, float] = pos(r, t=pp2[0])
-
-            #p3: List[float] = [p2[i] - p[i] for i in ('x', 'y')]
-            #tr: float = -unit_rev / 4 - atan2(p3[0], p3[1])
-                # Calculate position for azimuth (ang - 0.01°)
+            # Calculate position for azimuth (ang - 0.01°)
             pp: Tuple[float, float] = transform(alt=0, az=ang - 0.01, latitude=latitude)
-            r: float = radius(dec=pp[1] / unit_deg, latitude=latitude) * scale_factor  # Apply scale_factor
+            r: float = radius(dec=pp[1] / unit_deg, latitude=latitude) * scale_factor
             p: Dict[str, float] = pos(r, pp[0])
 
             # Calculate position for azimuth (ang + 0.01°)
             pp2: Tuple[float, float] = transform(alt=0, az=ang + 0.01, latitude=latitude)
-            r2: float = radius(dec=pp2[1] / unit_deg, latitude=latitude) * scale_factor  # Apply scale_factor
+            r2: float = radius(dec=pp2[1] / unit_deg, latitude=latitude) * scale_factor
             p2: Dict[str, float] = pos(r2, t=pp2[0])
 
             # Compute tangent vector and text rotation
             p3: List[float] = [p2[i] - p[i] for i in ('x', 'y')]
             tr: float = -unit_rev / 4 - atan2(p3[0], p3[1])
 
+            # Calculate final position
+            x_pos = x0[0] + p['x']
+            y_pos = -x0[1] + p['y']
+
+            # Draw the text
             context.set_color((0, 0, 0, 1))
-            context.text(text=dir, x=x0[0] + p['x'], y=-x0[1] + p['y'],
-                         h_align=0, v_align=1, gap=(-1*unit_mm-font_size_base), rotation=tr)
+            context.text(text=dir, x=x_pos, y=y_pos,
+                         h_align=0, v_align=1, 
+                         gap=(-1*unit_mm-font_size_base), 
+                         rotation=tr)
 
+            # Return the position
+            return (x_pos, y_pos)
 
-
-        # Write the cardinal points around the horizon of the viewing window
+        # Write the cardinal points and store their positions
         context.set_font_style(bold=True)
 
-        txt: str = text[language]['cardinal_points']['w']
-        cardinal(txt, 180 if not is_southern else 0)
-
-        txt = text[language]['cardinal_points']['s']
-        cardinal(txt, 270 if not is_southern else 90)
-
-        txt = text[language]['cardinal_points']['e']
-        cardinal(txt, 0 if not is_southern else 180)
-
+        # North position
         txt = text[language]['cardinal_points']['n']
-        cardinal(txt, 90 if not is_southern else 270)
+        cardinal_positions['N'] = cardinal(txt, 90 if not is_southern else 270)
+
+        # South position
+        txt = text[language]['cardinal_points']['s']
+        cardinal_positions['S'] = cardinal(txt, 270 if not is_southern else 90)
+
+        # East position
+        txt = text[language]['cardinal_points']['e']
+        cardinal_positions['E'] = cardinal(txt, 0 if not is_southern else 180)
+
+        # West position
+        txt = text[language]['cardinal_points']['w']
+        cardinal_positions['W'] = cardinal(txt, 180 if not is_southern else 0)
+
+        context.set_font_style(bold=False)
+
+        # Now you can access the positions:
+        north_y = cardinal_positions['N'][1]
+
 
         context.set_font_style(bold=False)
 
@@ -693,6 +646,47 @@ class Holder(BaseComponent):
         #context.circle(centre_x=0, centre_y=h, radius=central_hole_size)
         #context.stroke()
 
+# Angles for rectascension
+
+        context.begin_path()
+        context.move_to(0, hour_circle_radius-h)
+        context.line_to(0, -hour_circle_radius-h)
+        context.stroke(line_width=1)
+        # Draw lines of constant declination at 15 degree intervals.
+        dec: float
+        for dec in arange(80, -80, -10):
+            # Convert declination into radius from the centre of the planisphere
+            r: float = radius(dec=dec, latitude=latitude)
+            #print(dec)
+            #print(r)
+            #print(hour_circle_radius)
+
+            if r < hour_circle_radius-2*unit_mm and (not (r-h > (north_y-1 * unit_mm - font_size_base-2*unit_mm) and r-h< north_y-1 * unit_mm - font_size_base+2*unit_mm)):
+
+                
+
+                context.begin_path()
+                context.move_to(-1*unit_mm, r-h)
+                context.line_to(1*unit_mm, r-h)
+                context.stroke(line_width=1)
+
+
+                # Dec labels: 
+                # Add label (right side)
+                # Declination label has wrong sign for some reason...
+                dec_label=dec
+                label = f"{dec_label}°"
+                context.set_font_size(0.6)  # Smaller font for declination labels
+                context.set_color((0, 0, 0, 1))
+
+                # Position text to the right of the tick mark
+                context.text(text=label,
+                             x=3*unit_mm,  # Position to the right of tick
+                             y=r-h,         # Same height as tick
+                             h_align=-1,   # Left-aligned (text flows right)
+                             v_align=0.5,  # Vertically centered
+                             gap=0,
+                             rotation=0)    # Horizontal text
 
 # Do it right away if we're run as a script
 if __name__ == "__main__":
