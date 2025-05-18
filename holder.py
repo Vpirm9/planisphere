@@ -21,7 +21,7 @@
 Render the holder for the planisphere.
 """
 
-from math import pi, sin, cos, atan2, asin, hypot, sqrt
+from math import pi, sin, cos, atan2, asin, hypot, sqrt, fmod
 from numpy import arange, concatenate, sum, array, arctan2, unwrap, degrees, argsort #,sqrt
 from typing import Dict, List, Tuple
 
@@ -32,6 +32,23 @@ from settings import fetch_command_line_arguments
 from text import text
 
 fold_gap=0.0
+
+def shift_azimuth(azimuth: float, shift_degrees: float) -> float:
+    """
+    Shift an azimuth by specified degrees while keeping it in 0-360° range.
+    
+    Args:
+        azimuth: Original azimuth in degrees (0-360)
+        shift_degrees: Degrees to shift (positive = clockwise, negative = counter-clockwise)
+    
+    Returns:
+        Shifted azimuth in degrees (0-360)
+    """
+    shifted = azimuth + shift_degrees
+    normalized = fmod(shifted, 360.0)
+    if normalized < 0:
+        normalized += 360.0
+    return normalized
 
 class Holder(BaseComponent):
     """
@@ -70,55 +87,97 @@ class Holder(BaseComponent):
         #}
 
     def draw_alt_az_grid(self, context: GraphicsContext, latitude: float, x0: Tuple[float, float]) -> None:
-            """Draw the alt-az grid directly into the viewing window."""
-            # Set grid parameters based on latitude
-            alt_edge = -12 if abs(latitude) >= 15 else -9
-            azimuth_step = 1
-
-            # Draw grid lines (semi-transparent and thin)
-            #context.set_color((0.3, 0.3, 0.3, 0.5))  # Light gray, 50% opacity ---> Changed to black
-            context.set_color((0, 0, 0, 1))  # Solid black
-            context.set_line_width(0.25 * line_width_base)
-
-
-            # Altitude circles (20° increments)
-            for alt in range(10, 85, 20):
-                path = [
-                    transform(alt=alt, az=az, latitude=latitude)
-                    for az in arange(0, 360.5, 1)
-                ]
-                context.begin_path()
-                for i, p in enumerate(path):
-                    r = radius(dec=p[1] / unit_deg, latitude=latitude)
-                    pos_abs = pos(r, p[0])
-                    x = x0[0] + pos_abs['x']
-                    y = -x0[1] + pos_abs['y']
-                    if i == 0:
-                        context.move_to(x, y)
-                    else:
-                        context.line_to(x, y)
-                context.stroke()
-
-            # Azimuth lines (30° increments) - dashed
-            context.set_line_style(dotted=True)
-            for az in arange(0, 359, 30):
-                path = [
-                    transform(alt=alt, az=az, latitude=latitude)
-                    for alt in arange(0, 90.1, 1)
-                ]
-                context.begin_path()
-                for i, p in enumerate(path):
-                    r = radius(dec=p[1] / unit_deg, latitude=latitude)
-                    pos_abs = pos(r, p[0])
-                    x = x0[0] + pos_abs['x']
-                    y = -x0[1] + pos_abs['y']
-                    if i == 0:
-                        context.move_to(x, y)
-                    else:
-                        context.line_to(x, y)
-                context.stroke()
-            context.set_line_style(dotted=False)  # Reset line style
-            context.set_color((0.3, 0.3, 0.3, 0.5))
+        """Draw the alt-az grid with labels directly into the viewing window."""
+        # Set grid parameters
+        alt_edge = -12 if abs(latitude) >= 15 else -9
+        context.set_color((0, 0, 0, 1))  # Solid black
+        context.set_line_width(0.25 * line_width_base)
+    
+        # Store positions we've already labeled to avoid overlaps
+        labeled_positions = []
+    
+        # Draw altitude circles (20° increments) with labels
+        for alt in range(10, 85, 20):
+            path = [
+                transform(alt=alt, az=az, latitude=latitude)
+                for az in arange(0, 360.5, 1)
+            ]
+            context.begin_path()
+            path_points = []
+            for i, p in enumerate(path):
+                r = radius(dec=p[1] / unit_deg, latitude=latitude)
+                pos_abs = pos(r, p[0])
+                x = x0[0] + pos_abs['x']
+                y = -x0[1] + pos_abs['y']
+                path_points.append((x, y))
+                if i == 0:
+                    context.move_to(x, y)
+                else:
+                    context.line_to(x, y)
+            context.stroke()
+    
+            # Add altitude label (avoid vertical line)
+            if path_points:
+                # Find point at 45° azimuth for labeling (avoid cardinal directions)
+                label_point = path_points[7*len(path_points)//8]  # 45° position
+                x, y = label_point
+                
+                # Check if this position is too close to existing labels
+                too_close = any(hypot(x - px, y - py) < 3*unit_mm for (px, py) in labeled_positions)
+                if not too_close:
+                    context.set_font_size(0.6)
+                    context.text(text=f"{alt}°",
+                               x=x + 2*unit_mm,  # Offset from circle
+                               y=y,
+                               h_align=-1,  # Left aligned
+                               v_align=0.5,
+                               gap=0,
+                               rotation=0)
+                    labeled_positions.append((x, y))
+    
+        # Draw azimuth lines (30° increments) with labels
+        context.set_line_style(dotted=True)
+        for az in arange(0, 359, 30):
+            path = [
+                transform(alt=alt, az=az, latitude=latitude)
+                for alt in arange(0, 90.1, 1)
+            ]
+            context.begin_path()
+            path_points = []
+            for i, p in enumerate(path):
+                r = radius(dec=p[1] / unit_deg, latitude=latitude)
+                pos_abs = pos(r, p[0])
+                x = x0[0] + pos_abs['x']
+                y = -x0[1] + pos_abs['y']
+                path_points.append((x, y))
+                if i == 0:
+                    context.move_to(x, y)
+                else:
+                    context.line_to(x, y)
+            context.stroke()
+    
+            # Add azimuth label near horizon (avoid vertical line)
+            if len(path_points) > 10 and az % 90 != 0:  # Skip cardinal directions
+                x, y = path_points[6]  # Position slightly above horizon
+                
+                # Check if this position is too close to existing labels
+                too_close = any(hypot(x - px, y - py) < 3*unit_mm for (px, py) in labeled_positions)
+                if not too_close:
+                    context.set_font_size(0.6)
+                    # Convert azimuth to compass direction if needed
+                    az_text = f"{int(shift_azimuth(az, -90.0))}°" if az not in [0, 90, 180, 270] else ""
+                    if az_text:
+                        context.text(text=az_text,
+                                   x=x,
+                                   y=y - 2*unit_mm,  # Offset below line
+                                   h_align=0,
+                                   v_align=1,
+                                   gap=0,
+                                   rotation=0)
+                        labeled_positions.append((x, y))
+    
+        context.set_line_style(dotted=False)
+        context.set_color((0.3, 0.3, 0.3, 0.5))
 
 
 
