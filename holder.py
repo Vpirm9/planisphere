@@ -307,14 +307,16 @@ class Holder(BaseComponent):
         dx, dy = pos2['x'] - pos1['x'], pos2['y'] - pos1['y']
         tr = -unit_rev / 4 - atan2(dx, dy)
 
+        context.set_font_size(0.6)
         context.set_font_style(bold=True)
         context.set_color((0, 0, 0, 1))
-        context.text(text="Start of astronomical night",
+        context.text(text="End of astronomical night",
                      x=x0[0] + pos2['x'], y=-x0[1] + pos2['y'],
                      h_align=0, v_align=1,
-                     gap=(-1 * unit_mm - font_size_base),
+                     gap=(+4 * unit_mm - font_size_base),
                      rotation=tr)
         context.set_font_style(bold=False)
+        context.set_font_size(0.9)
 
 
         # Right side
