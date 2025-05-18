@@ -338,6 +338,26 @@ class Holder(BaseComponent):
         context.stroke()
 
 
+        # Compute rotation and position for twilight label
+        i = twilight_text_pos_index
+        az1, az2 = az_points_right[i], az_points_right[i - 1]
+        p1, p2 = [transform(alt=alt, az=az, latitude=latitude) for az in (az1, az2)]
+        r1, r2 = [radius(dec=p[1] / unit_deg, latitude=latitude) for p in (p1, p2)]
+        pos1, pos2 = [pos(r, p[0]) for r, p in zip((r1, r2), (p1, p2))]
+
+        dx, dy = pos2['x'] - pos1['x'], pos2['y'] - pos1['y']
+        tr = -unit_rev / 4 - atan2(dx, dy)
+
+        context.set_font_size(0.6)
+        context.set_font_style(bold=True)
+        context.set_color((0, 0, 0, 1))
+        context.text(text="Start of astronomical night",
+                     x=x0[0] + pos2['x'], y=-x0[1] + pos2['y'],
+                     h_align=0, v_align=1,
+                     gap=(+4 * unit_mm - font_size_base),
+                     rotation=tr)
+        context.set_font_style(bold=False)
+        context.set_font_size(0.9)
 
 
 
