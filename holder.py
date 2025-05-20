@@ -181,6 +181,7 @@ class Holder(BaseComponent):
 
 
 
+
     def do_rendering(self, settings: dict, context: GraphicsContext) -> None:
         """
         This method is required to actually render this item.
@@ -746,6 +747,55 @@ class Holder(BaseComponent):
                              v_align=0.5,  # Vertically centered
                              gap=0,
                              rotation=0)    # Horizontal text
+        # Need to transform az        
+        # --- Add Zenith marker ---
+        x0: Tuple[float, float] = (0, h)
+        pp = transform(alt=90, az=0.0, latitude=latitude)
+        r = radius(dec=pp[1] / unit_deg, latitude=latitude)
+        p = pos(r=r, t=pp[0])
+
+
+        #viewing_window_points.append((x0[0] + p['x'], -x0[1] + p['y']))
+        center_y= -x0[1] + p['y'] #float = radius(dec=90.0/unit_deg, latitude=latitude)
+
+        circle_radius = 0.75 * unit_mm  # 2 mm diameter → radius = 1 mm
+        center_x = x0[0]
+
+        # Draw filled black circle
+        #context.set_color((0, 0, 0, 1))  # Black
+        #context.begin_path()
+        #context.circle(center_x, center_y, circle_radius)        
+        #context.fill()
+
+        #White circle
+        circle_radius = circle_radius # 2 mm diameter → radius = 1 mm
+ 
+        # Draw filled white circle
+        context.set_color((1, 1, 1, 1))  # White
+        context.begin_path()
+        context.circle(center_x, center_y, circle_radius)        
+        context.fill()
+
+        context.set_color((0, 0, 0, 1))  # Black
+        context.begin_path()
+        context.arc(center_x, center_y, circle_radius, arc_from=0, arc_to=pi*2)  # Full circle arc
+        context.set_line_width(2 * line_width_base)  # Thin line width
+        context.stroke()
+
+        # Draw label "Z" to the right of the circle
+        context.set_color((0, 0, 0, 1))  # Black text
+        context.set_font_size(0.7)
+        context.set_font_style(bold=True)
+        context.text(
+            text="Z",
+            x=center_x + 1.5 * unit_mm,
+            y=center_y,
+            h_align=0,
+            v_align=0.5,
+            gap=0,
+            rotation=0
+        )
+        context.set_font_style(bold=False)
 
 # Do it right away if we're run as a script
 if __name__ == "__main__":
